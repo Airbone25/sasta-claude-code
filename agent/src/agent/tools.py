@@ -1,5 +1,7 @@
 from langchain.tools import tool
 from pathlib import Path
+import subprocess
+import shlex
 
 PROJECT_ROOT = Path("/workspaces/agent-langchain/creations")
 
@@ -92,4 +94,45 @@ def edit_file(path: str, old_text: str, new_text: str) -> str:
         return f"Successfully Editied {path}"
     else:
         return f"Old text was not present"
+
+ALLOWED_COMMANDS = {
+    "python": ["--version"],
+    "python3": ["--version"],
+    "node": ["--version"],
+    "npm": ["--version","install","run"],
+    "git": ["--version"],
+    "npx": ["create","vite@latest","."]
+}
+
+@tool
+def run_command(command: str) -> str:
+    """Execute a shell command inside the project workspace and return its output"""
+    args = shlex.split(command)
+
+    if not args:
+        return "Error: Empty command"
+
+    executable = args[0]
+
+    if executable not in ALLOWED_COMMANDS:
+        return f"Error: Command {executable} is not allowed"
+
+    result = subprocess.run(
+            args,
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            shell=False
+    )
+
+    stdout = result.stdout.strip() or "None"
+    stderr = result.stderr.strip() or "None"
+
+    return (
+            f"Command: {command}\n"
+            f"Exit code: {result.returncode}\n\n"
+            f"STDOUT:\n{stdout}\n\n"
+            f"STDERR:\n{stderr}"
+        )
 
